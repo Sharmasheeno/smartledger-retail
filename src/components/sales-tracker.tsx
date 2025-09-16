@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mockSales } from "@/lib/mock-data";
-import { PlusCircle } from "lucide-react";
+import { Edit, PlusCircle } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -51,7 +51,9 @@ type Sale = {
 
 export function SalesTracker() {
   const [sales, setSales] = useState<Sale[]>(mockSales);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -81,56 +83,183 @@ export function SalesTracker() {
 
     if (newSale.customerName && newSale.product && !isNaN(newSale.amount)) {
       setSales([newSale, ...sales]);
-      setIsDialogOpen(false);
+      setIsAddDialogOpen(false);
     }
   };
 
+  const handleEditClick = (sale: Sale) => {
+    setEditingSale(sale);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateSale = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingSale) return;
+
+    const formData = new FormData(event.currentTarget);
+    const updatedSale: Sale = {
+      ...editingSale,
+      customerName: formData.get("customerName") as string,
+      product: formData.get("product") as string,
+      amount: parseFloat(formData.get("amount") as string),
+      status: formData.get("status") as "Paid" | "Pending",
+    };
+
+    setSales(sales.map(s => s.id === updatedSale.id ? updatedSale : s));
+    setEditingSale(null);
+    setIsEditDialogOpen(false);
+  };
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Recent Sales</CardTitle>
-          <CardDescription>A list of the most recent sales.</CardDescription>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <PlusCircle className="mr-2" />
-              Add Sale
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Sale</DialogTitle>
-              <DialogDescription>
-                Enter the details for the new sale. Click save when you're done.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddSale}>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Sales</CardTitle>
+            <CardDescription>A list of the most recent sales.</CardDescription>
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <PlusCircle className="mr-2" />
+                Add Sale
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Sale</DialogTitle>
+                <DialogDescription>
+                  Enter the details for the new sale. Click save when you're done.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddSale}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="customerName" className="text-right">
+                      Customer
+                    </Label>
+                    <Input id="customerName" name="customerName" className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="product" className="text-right">
+                      Product
+                    </Label>
+                    <Input id="product" name="product" className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="amount" className="text-right">
+                      Amount
+                    </Label>
+                    <Input id="amount" name="amount" type="number" step="0.01" className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="status" className="text-right">
+                      Status
+                    </Label>
+                    <Select name="status" defaultValue="Paid">
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="secondary">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit">Save Sale</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sales.map((sale) => (
+                <TableRow key={sale.id}>
+                  <TableCell>{sale.customerName}</TableCell>
+                  <TableCell>{sale.product}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        sale.status === "Paid" ? "default" : "secondary"
+                      }
+                      className={
+                          sale.status === "Paid" ? "bg-green-500/20 text-green-700 hover:bg-green-500/30" : "bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30"
+                      }
+                    >
+                      {sale.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(sale.amount)}
+                  </TableCell>
+                  <TableCell>{formatDate(sale.date)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(sale)}>
+                      <Edit className="h-4 w-4" />
+                      <span className="sr-only">Edit Sale</span>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Sale Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Sale</DialogTitle>
+            <DialogDescription>
+              Update the sale details. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          {editingSale && (
+            <form onSubmit={handleUpdateSale}>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="customerName" className="text-right">
+                  <Label htmlFor="edit-customerName" className="text-right">
                     Customer
                   </Label>
-                  <Input id="customerName" name="customerName" className="col-span-3" required />
+                  <Input id="edit-customerName" name="customerName" defaultValue={editingSale.customerName} className="col-span-3" required />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="product" className="text-right">
+                  <Label htmlFor="edit-product" className="text-right">
                     Product
                   </Label>
-                  <Input id="product" name="product" className="col-span-3" required />
+                  <Input id="edit-product" name="product" defaultValue={editingSale.product} className="col-span-3" required />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="amount" className="text-right">
+                  <Label htmlFor="edit-amount" className="text-right">
                     Amount
                   </Label>
-                  <Input id="amount" name="amount" type="number" step="0.01" className="col-span-3" required />
+                  <Input id="edit-amount" name="amount" type="number" step="0.01" defaultValue={editingSale.amount} className="col-span-3" required />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">
+                  <Label htmlFor="edit-status" className="text-right">
                     Status
                   </Label>
-                  <Select name="status" defaultValue="Paid">
+                  <Select name="status" defaultValue={editingSale.status}>
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select a status" />
                     </SelectTrigger>
@@ -143,53 +272,16 @@ export function SalesTracker() {
               </div>
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button type="button" variant="secondary">
+                  <Button type="button" variant="secondary" onClick={() => setIsEditDialogOpen(false)}>
                     Cancel
                   </Button>
                 </DialogClose>
-                <Button type="submit">Save Sale</Button>
+                <Button type="submit">Save Changes</Button>
               </DialogFooter>
             </form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sales.map((sale) => (
-              <TableRow key={sale.id}>
-                <TableCell>{sale.customerName}</TableCell>
-                <TableCell>{sale.product}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      sale.status === "Paid" ? "default" : "secondary"
-                    }
-                    className={
-                        sale.status === "Paid" ? "bg-green-500/20 text-green-700 hover:bg-green-500/30" : "bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30"
-                    }
-                  >
-                    {sale.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(sale.amount)}
-                </TableCell>
-                <TableCell>{formatDate(sale.date)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

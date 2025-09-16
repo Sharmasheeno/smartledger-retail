@@ -11,39 +11,38 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Loader } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-
+import { useToast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
-  const router = useRouter();
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
-    setError(null);
     const formData = new FormData(event.currentTarget);
     const firstName = formData.get("first-name") as string;
     const lastName = formData.get("last-name") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const name = `${firstName} ${lastName}`.trim();
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (email && password && firstName) {
-        login({ email, name: `${firstName} ${lastName}`.trim() });
-        router.push("/dashboard");
-      } else {
-        throw new Error("Please fill out all fields.");
+      if (!email || !password || !firstName) {
+        throw new Error("Please fill out all required fields.");
       }
+      await signup(email, password, name);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred.");
+      console.error(err);
+      toast({
+        title: "Sign-up Failed",
+        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -83,7 +82,6 @@ export default function SignupPage() {
             <Label htmlFor="password">Password</Label>
             <Input id="password" name="password" type="password" required />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
             Create an account

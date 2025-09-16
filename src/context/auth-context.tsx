@@ -8,20 +8,41 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User as FirebaseUser,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { generateUserProfile } from "@/ai/flows/generate-user-profile";
 
 interface User {
-  name: string;
-  email: string;
+  uid: string;
+  name: string | null;
+  email: string | null;
+  photoURL: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (user: User) => void;
+  login: (email: string, pass: string) => Promise<void>;
+  signup: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const formatUser = (user: FirebaseUser): User => ({
+  uid: user.uid,
+  email: user.email,
+  name: user.displayName,
+  photoURL: user.photoURL,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -29,42 +50,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Replace with actual authentication check (e.g., from Firebase Auth)
-    const checkAuth = async () => {
-      setLoading(true);
-      // Simulate checking for a session
-      try {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error("Failed to parse user from localStorage", error);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(formatUser(firebaseUser));
+      } else {
         setUser(null);
-        localStorage.removeItem("user");
-      } finally {
-        setLoading(false);
       }
-    };
-    checkAuth();
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const login = (userData: User) => {
-    // Replace with actual login logic (e.g., with Firebase Auth)
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+  const login = async (email: string, pass: string) => {
+    await signInWithEmailAndPassword(auth, email, pass);
     router.push("/dashboard");
   };
 
+  const signup = async (email: string, pass: string, name: string) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    const firebaseUser = userCredential.user;
+
+    if (firebaseUser) {
+      const { photoDataUri } = await generateUserProfile({ name });
+      await updateProfile(firebaseUser, {
+        displayName: name,
+        photoURL: photoDataUri,
+      });
+      setUser(formatUser(firebaseUser)); // Update context with new user info
+    }
+    router.push("/dashboard");
+  };
+
+
   const logout = () => {
-    // Replace with actual logout logic (e.g., with Firebase Auth)
-    setUser(null);
-    localStorage.removeItem("user");
-    router.push("/login");
+    signOut(auth).then(() => {
+      setUser(null);
+      router.push("/login");
+    });
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, signup }}>
       {children}
     </AuthContext.Provider>
   );

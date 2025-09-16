@@ -18,7 +18,8 @@ import Link from "next/link";
 export function Header() {
   const { user, logout } = useAuth();
   
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "??";
     const names = name.split(' ');
     if (names.length > 1) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
@@ -36,8 +37,8 @@ export function Header() {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-9 w-9">
                 <AvatarImage
-                  src={`https://picsum.photos/seed/${user.email}/40/40`}
-                  alt={user.name}
+                  src={user.photoURL ?? ''}
+                  alt={user.name ?? 'User'}
                 />
                 <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
               </Avatar>

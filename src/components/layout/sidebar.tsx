@@ -15,6 +15,7 @@ import {
   BarChart,
   Boxes,
   LayoutDashboard,
+  Settings,
   ShoppingCart,
   Users,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const menuItems = [
   { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/reports", label: "Reports", icon: BarChart },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function AppSidebar() {

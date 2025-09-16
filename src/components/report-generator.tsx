@@ -1,0 +1,153 @@
+"use client";
+
+import { useState } from "react";
+import { DateRange } from "react-day-picker";
+import { addDays, format } from "date-fns";
+import { mockSales } from "@/lib/mock-data";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { DatePickerWithRange } from "@/components/ui/date-picker";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { BarChart, FileText } from "lucide-react";
+
+type Sale = typeof mockSales[0];
+
+type ReportData = {
+  totalSales: number;
+  numberOfSales: number;
+  sales: Sale[];
+  startDate: Date;
+  endDate: Date;
+};
+
+export function ReportGenerator() {
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -30),
+    to: new Date(),
+  });
+  const [report, setReport] = useState<ReportData | null>(null);
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(value);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const handleGenerateReport = () => {
+    if (!date || !date.from || !date.to) {
+      return;
+    }
+
+    const filteredSales = mockSales.filter(sale => {
+      const saleDate = new Date(sale.date);
+      return saleDate >= date.from! && saleDate <= date.to!;
+    });
+
+    const totalSales = filteredSales.reduce((sum, sale) => sum + sale.amount, 0);
+
+    setReport({
+      totalSales,
+      numberOfSales: filteredSales.length,
+      sales: filteredSales,
+      startDate: date.from,
+      endDate: date.to,
+    });
+  };
+
+  return (
+    <div className="grid gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Report Generator</CardTitle>
+          <CardDescription>
+            Select a date range to generate a sales report.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-4">
+          <DatePickerWithRange date={date} setDate={setDate} />
+          <Button onClick={handleGenerateReport} disabled={!date?.from || !date?.to}>
+            <FileText className="mr-2" />
+            Generate Report
+          </Button>
+        </CardContent>
+      </Card>
+
+      {report ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Report for {format(report.startDate, "LLL dd, y")} - {format(report.endDate, "LLL dd, y")}</CardTitle>
+            <CardDescription>
+              A summary of sales activity for the selected period.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(report.totalSales)}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Number of Sales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{report.numberOfSales}</div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <h3 className="text-lg font-semibold mb-2">Transactions</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.sales.map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell>{sale.customerName}</TableCell>
+                    <TableCell>{sale.product}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={sale.status === "Paid" ? "default" : "secondary"}
+                        className={sale.status === "Paid" ? "bg-green-500/20 text-green-700 hover:bg-green-500/30" : "bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30"}
+                      >
+                        {sale.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(sale.amount)}</TableCell>
+                    <TableCell>{formatDate(sale.date)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+         <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg">
+            <BarChart className="mx-auto h-12 w-12 mb-4" />
+            <h3 className="text-xl font-semibold">No Report Generated</h3>
+            <p>Select a date range and click "Generate Report" to see your sales data.</p>
+        </div>
+      )}
+    </div>
+  );
+}

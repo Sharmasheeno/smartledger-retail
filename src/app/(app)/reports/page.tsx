@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ReportGenerator } from "@/components/report-generator";
 
 export default function ReportsPage() {
   return (
@@ -8,14 +8,7 @@ export default function ReportsPage() {
         title="Reports"
         description="Generate daily, weekly, and monthly sales reports."
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Coming Soon</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>This section is under construction. Check back later for detailed reporting features.</p>
-        </CardContent>
-      </Card>
+      <ReportGenerator />
     </>
   );
 }

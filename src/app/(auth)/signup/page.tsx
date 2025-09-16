@@ -66,10 +66,14 @@ export default function SignupPage() {
         alt="Company Logo" 
         width={80} 
         height={80} 
-        className="mb-6 rounded-full"
+        className="mb-4 rounded-full"
         data-ai-hint="logo"
       />
-      <Card className="mx-auto max-w-sm">
+       <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold">SmartLedger</h1>
+        <p className="text-muted-foreground">for Retail Business</p>
+      </div>
+      <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
           <CardTitle className="text-xl">Sign Up</CardTitle>
           <CardDescription>

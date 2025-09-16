@@ -29,11 +29,16 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
+    // Safely handle Timestamp to Date conversion
+    const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp
+      ? data.lastPurchaseDate.toDate()
+      : new Date(data.lastPurchaseDate);
+    
     return {
       id: doc.id,
       ...data,
-      // Convert Firestore Timestamp to string for client-side consistency
-      lastPurchaseDate: (data.lastPurchaseDate as Timestamp).toDate().toISOString().split('T')[0],
+      // Convert Date to string for client-side consistency
+      lastPurchaseDate: lastPurchaseDate.toISOString().split('T')[0],
     } as Customer;
   });
   return customerList;
@@ -43,7 +48,7 @@ export const addCustomer = async (userId: string, customerData: Omit<Customer, "
     const customersCol = getUserCollection(userId, "customers");
     const docRef = await addDoc(customersCol, {
       ...customerData,
-      lastPurchaseDate: new Date(customerData.lastPurchaseDate),
+      lastPurchaseDate: customerData.lastPurchaseDate ? new Date(customerData.lastPurchaseDate) : new Date(),
     });
     return docRef.id;
 };

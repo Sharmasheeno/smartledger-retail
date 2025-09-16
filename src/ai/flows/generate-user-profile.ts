@@ -23,25 +23,7 @@ export type GenerateUserProfileOutput = z.infer<typeof GenerateUserProfileOutput
 export async function generateUserProfile(
   input: GenerateUserProfileInput
 ): Promise<GenerateUserProfileOutput> {
-  return generateUserProfileFlow(input);
+  // Using a placeholder image service to avoid Imagen API billing requirements.
+  const imageUrl = `https://picsum.photos/seed/${encodeURIComponent(input.name)}/200`;
+  return Promise.resolve({ photoDataUri: imageUrl });
 }
-
-const generateUserProfileFlow = ai.defineFlow(
-  {
-    name: 'generateUserProfileFlow',
-    inputSchema: GenerateUserProfileInputSchema,
-    outputSchema: GenerateUserProfileOutputSchema,
-  },
-  async (input) => {
-    const { media } = await ai.generate({
-        model: 'googleai/imagen-4.0-fast-generate-001',
-        prompt: `Generate a unique, abstract, and minimalist avatar representing the name '${input.name}'. The image should be suitable as a profile picture. Use a vibrant but professional color palette.`,
-    });
-
-    if (!media.url) {
-        throw new Error('Image generation failed.');
-    }
-
-    return { photoDataUri: media.url };
-  }
-);

@@ -10,6 +10,7 @@ import { DatePickerWithRange } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, FileText } from "lucide-react";
+import Link from "next/link";
 
 type Sale = typeof mockSales[0];
 
@@ -123,8 +124,16 @@ export function ReportGenerator() {
               <TableBody>
                 {report.sales.map((sale) => (
                   <TableRow key={sale.id}>
-                    <TableCell>{sale.customerName}</TableCell>
-                    <TableCell>{sale.product}</TableCell>
+                    <TableCell>
+                      <Link href="/customers" className="hover:underline text-primary">
+                        {sale.customerName}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link href="/inventory" className="hover:underline text-primary">
+                        {sale.product}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={sale.status === "Paid" ? "default" : "secondary"}

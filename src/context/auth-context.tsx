@@ -17,8 +17,9 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, storage } from "@/lib/firebase";
 import { generateUserProfile } from "@/ai/flows/generate-user-profile";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 interface User {
   uid: string;
@@ -33,6 +34,7 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   signup: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => void;
+  updateUserProfile: (name: string, email: string, photoFile?: File | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,7 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/dashboard");
   };
 
-
   const logout = () => {
     signOut(auth).then(() => {
       setUser(null);
@@ -90,8 +91,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateUserProfile = async (name: string, email: string, photoFile?: File | null) => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) throw new Error("No user is signed in.");
+
+    let photoURL = firebaseUser.photoURL;
+
+    if (photoFile) {
+      const storageRef = ref(storage, `profile-images/${firebaseUser.uid}`);
+      const snapshot = await uploadBytes(storageRef, photoFile);
+      photoURL = await getDownloadURL(snapshot.ref);
+    }
+    
+    // Note: Firebase Auth does not directly support email updates via this method.
+    // This requires a more complex flow with verification, which is beyond this scope.
+    // We will update the name and photoURL.
+    await updateProfile(firebaseUser, {
+      displayName: name,
+      photoURL: photoURL,
+    });
+
+    // Update the user state in the context
+    setUser(formatUser(firebaseUser));
+  };
+
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, signup }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, signup, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

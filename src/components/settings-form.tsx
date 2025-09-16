@@ -14,34 +14,70 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "lucide-react";
-import { useState, type FormEvent, useEffect } from "react";
+import { useState, type FormEvent, useEffect, useRef } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 export function SettingsForm() {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
       setName(user.name || "");
       setEmail(user.email || "");
+      setPhotoPreview(user.photoURL || null);
     }
   }, [user]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "??";
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setLoading(true);
-    // Here you would typically call an update function from your auth context
-    console.log("Updated info:", { name, email });
-    setTimeout(() => {
-      setLoading(false);
+    
+    try {
+      await updateUserProfile(name, email, photoFile);
       toast({
         title: "Profile Updated",
         description: "Your settings have been saved.",
       });
-    }, 1000);
+    } catch (error) {
+        console.error("Failed to update profile", error);
+        toast({
+            title: "Update Failed",
+            description: error instanceof Error ? error.message : "An unexpected error occurred.",
+            variant: "destructive",
+        });
+    } finally {
+      setLoading(false);
+      setPhotoFile(null);
+    }
   };
 
   if (!user) {
@@ -62,6 +98,25 @@ export function SettingsForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+        <div className="space-y-2">
+            <Label>Profile Picture</Label>
+            <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20">
+                    <AvatarImage src={photoPreview ?? ''} alt={user.name ?? 'User'} />
+                    <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
+                </Avatar>
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    Change Photo
+                </Button>
+                <Input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/png, image/jpeg, image/gif"
+                    onChange={handlePhotoChange}
+                />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -77,9 +132,12 @@ export function SettingsForm() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              disabled
+              className="cursor-not-allowed bg-muted/50"
             />
+             <p className="text-xs text-muted-foreground">
+                Email address cannot be changed.
+            </p>
           </div>
         </CardContent>
         <CardFooter>

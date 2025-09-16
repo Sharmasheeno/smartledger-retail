@@ -39,11 +39,18 @@ export default function SignupPage() {
         throw new Error("Password must be at least 6 characters long.");
       }
       await signup(email, password, name);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      let description = "An unexpected error occurred.";
+      if (err.code === 'auth/email-already-in-use') {
+        description = "This email is already in use. Please try logging in.";
+      } else if (err instanceof Error) {
+        description = err.message;
+      }
+      
       toast({
         title: "Sign-up Failed",
-        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+        description,
         variant: "destructive",
       });
     } finally {

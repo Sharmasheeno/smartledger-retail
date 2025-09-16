@@ -54,7 +54,7 @@ export default function LoginPage() {
         data-ai-hint="logo"
       />
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">SmartLedger</h1>
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500 bg-clip-text text-transparent">SmartLedger</h1>
         <p className="text-muted-foreground">for Retail Business</p>
       </div>
       <Card className="mx-auto max-w-sm w-full">

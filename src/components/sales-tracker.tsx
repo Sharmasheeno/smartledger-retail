@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mockSales } from "@/lib/mock-data";
-import { Edit, PlusCircle } from "lucide-react";
+import { Edit, PlusCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -30,6 +30,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import {
@@ -54,6 +65,7 @@ export function SalesTracker() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -109,6 +121,14 @@ export function SalesTracker() {
     setEditingSale(null);
     setIsEditDialogOpen(false);
   };
+
+  const handleDeleteConfirm = () => {
+    if (saleToDelete) {
+      setSales(sales.filter(s => s.id !== saleToDelete.id));
+      setSaleToDelete(null);
+    }
+  };
+
 
   return (
     <>
@@ -217,6 +237,26 @@ export function SalesTracker() {
                       <Edit className="h-4 w-4" />
                       <span className="sr-only">Edit Sale</span>
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon" onClick={() => setSaleToDelete(sale)}>
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete Sale</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this sale record.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setSaleToDelete(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}

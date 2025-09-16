@@ -50,15 +50,21 @@ export async function intelligentStockAlerts(
 
 const prompt = ai.definePrompt({
   name: 'intelligentStockAlertsPrompt',
-  input: {schema: IntelligentStockAlertsInputSchema},
+  input: {
+    schema: z.object({
+      currentStockLevels: z.string(),
+      historicalSalesData: z.string(),
+      seasonalTrends: z.string().optional(),
+    }),
+  },
   output: {schema: IntelligentStockAlertsOutputSchema},
   prompt: `You are an AI assistant that analyzes stock levels, historical sales data, and seasonal trends to generate intelligent stock alerts.
 
 Analyze the following data to predict which products are likely to run low on stock. Provide the product ID and a brief reason for each alert.
 
-Current Stock Levels: {{{JSON.stringify currentStockLevels}}}
-Historical Sales Data: {{{JSON.stringify historicalSalesData}}}
-Seasonal Trends: {{{JSON.stringify seasonalTrends}}}
+Current Stock Levels: {{{currentStockLevels}}}
+Historical Sales Data: {{{historicalSalesData}}}
+Seasonal Trends: {{{seasonalTrends}}}
 
 Generate alerts only for products where stock is likely to run low soon, taking into account historical sales and any seasonal trends.
 `,
@@ -71,8 +77,11 @@ const intelligentStockAlertsFlow = ai.defineFlow(
     outputSchema: IntelligentStockAlertsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt({
+        currentStockLevels: JSON.stringify(input.currentStockLevels),
+        historicalSalesData: JSON.stringify(input.historicalSalesData),
+        seasonalTrends: JSON.stringify(input.seasonalTrends),
+    });
     return output!;
   }
 );
-

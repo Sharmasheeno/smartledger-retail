@@ -69,3 +69,12 @@ export const stockAlertsData: IntelligentStockAlertsInput = {
     "P005": 2.5 // Christmas holiday trend
   }
 };
+
+export const mockCustomers = [
+  { id: "C001", name: "Alice Johnson", email: "alice@example.com", totalSpent: 1250.75, lastPurchaseDate: "2024-05-15" },
+  { id: "C002", name: "Bob Williams", email: "bob@example.com", totalSpent: 850.50, lastPurchaseDate: "2024-05-20" },
+  { id: "C003", name: "Charlie Brown", email: "charlie@example.com", totalSpent: 2300.00, lastPurchaseDate: "2024-05-01" },
+  { id: "C004", name: "Diana Miller", email: "diana@example.com", totalSpent: 450.25, lastPurchaseDate: "2024-01-10" },
+  { id: "C005", name: "Ethan Davis", email: "ethan@example.com", totalSpent: 1800.00, lastPurchaseDate: "2024-05-18" },
+  { id: "C006", name: "Fiona Garcia", email: "fiona@example.com", totalSpent: 300.00, lastPurchaseDate: "2023-11-22" },
+];

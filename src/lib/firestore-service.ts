@@ -9,7 +9,6 @@ import {
   Timestamp,
   orderBy,
   query,
-  where,
 } from "firebase/firestore";
 import type { Customer, Sale } from "./types";
 
@@ -18,6 +17,8 @@ import type { Customer, Sale } from "./types";
 
 // Generic function to get a collection reference for a user
 const getUserCollection = (userId: string, collectionName: string) => {
+  // This correctly points to a subcollection under the user's document.
+  // e.g., /users/{userId}/customers
   return collection(db, "users", userId, collectionName);
 };
 
@@ -29,7 +30,7 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
-    // Safely handle Timestamp to Date conversion
+    // Safely handle Timestamp to Date conversion if data comes from server
     const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp
       ? data.lastPurchaseDate.toDate()
       : new Date(data.lastPurchaseDate);
@@ -37,7 +38,7 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
     return {
       id: doc.id,
       ...data,
-      // Convert Date to string for client-side consistency
+      // Convert Date to string for client-side consistency (e.g., for date inputs)
       lastPurchaseDate: lastPurchaseDate.toISOString().split('T')[0],
     } as Customer;
   });
@@ -46,6 +47,7 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
 
 export const addCustomer = async (userId: string, customerData: Omit<Customer, "id">) => {
     const customersCol = getUserCollection(userId, "customers");
+    // Ensure the date is stored as a Firestore Timestamp for proper ordering
     const docRef = await addDoc(customersCol, {
       ...customerData,
       lastPurchaseDate: customerData.lastPurchaseDate ? new Date(customerData.lastPurchaseDate) : new Date(),
@@ -56,6 +58,7 @@ export const addCustomer = async (userId: string, customerData: Omit<Customer, "
 export const updateCustomer = async (userId: string, customerId: string, customerData: Partial<Omit<Customer, "id">>) => {
   const customerDoc = doc(db, "users", userId, "customers", customerId);
   const updateData: { [key: string]: any } = { ...customerData };
+  // If date is being updated, convert it to a Date object for Firestore
   if (customerData.lastPurchaseDate) {
     updateData.lastPurchaseDate = new Date(customerData.lastPurchaseDate);
   }
@@ -79,7 +82,7 @@ export const getSales = async (userId: string): Promise<Sale[]> => {
     return {
       id: doc.id,
       ...data,
-      // Convert Firestore Timestamp to Date object
+      // Convert Firestore Timestamp to Date object for use in the client
       date: (data.date as Timestamp).toDate(),
     } as Sale;
   });
@@ -88,6 +91,7 @@ export const getSales = async (userId: string): Promise<Sale[]> => {
 
 export const addSale = async (userId: string, saleData: Omit<Sale, "id" | "date"> & { date?: Date }) => {
   const salesCol = getUserCollection(userId, "sales");
+  // Store dates as Firestore Timestamps
   const docRef = await addDoc(salesCol, {
     ...saleData,
     date: saleData.date || new Date(), // Use provided date or now

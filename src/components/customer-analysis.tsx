@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   generateCustomerInsights,
   type CustomerInsightsOutput,
 } from "@/ai/flows/customer-insights";
-import { mockCustomers } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,17 +42,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
-
-type Customer = typeof mockCustomers[0];
+import { useAuth } from "@/context/auth-context";
+import { getCustomers, addCustomer, updateCustomer, deleteCustomer } from "@/lib/firestore-service";
+import type { Customer } from "@/lib/types";
+import { Skeleton } from "./ui/skeleton";
 
 export function CustomerAnalysis() {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const { user } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [insights, setInsights] = useState<CustomerInsightsOutput | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const { toast } = useToast();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -61,9 +63,33 @@ export function CustomerAnalysis() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
+  useEffect(() => {
+    if (user) {
+      fetchCustomers();
+    }
+  }, [user]);
+
+  const fetchCustomers = async () => {
+    if (!user) return;
+    setLoadingData(true);
+    try {
+      const userCustomers = await getCustomers(user.uid);
+      setCustomers(userCustomers);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch customer data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
 
   const handleGenerateInsights = async () => {
-    setLoading(true);
+    setLoadingInsights(true);
     setInsights(null);
     try {
       const result = await generateCustomerInsights({ customers });
@@ -76,7 +102,7 @@ export function CustomerAnalysis() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoadingInsights(false);
     }
   };
 
@@ -90,24 +116,32 @@ export function CustomerAnalysis() {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'UTC' // To prevent off-by-one day errors
     });
   }
 
-  const handleAddCustomer = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleAddCustomer = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!user) return;
     const formData = new FormData(event.currentTarget);
-    const newCustomer: Customer = {
-      id: `C${(customers.length + 1).toString().padStart(3, "0")}`,
+    const newCustomerData = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       totalSpent: parseFloat(formData.get("totalSpent") as string) || 0,
       lastPurchaseDate: new Date().toISOString().split('T')[0],
     };
 
-    if (newCustomer.name && newCustomer.email) {
-      setCustomers([newCustomer, ...customers]);
-      setIsAddDialogOpen(false);
+    if (newCustomerData.name && newCustomerData.email) {
+       try {
+        const id = await addCustomer(user.uid, newCustomerData);
+        setCustomers([{ id, ...newCustomerData }, ...customers]);
+        setIsAddDialogOpen(false);
+        toast({ title: "Success", description: "Customer added successfully." });
+      } catch (error) {
+        console.error("Error adding customer:", error);
+        toast({ title: "Error", description: "Failed to add customer.", variant: "destructive" });
+      }
     }
   };
 
@@ -116,27 +150,40 @@ export function CustomerAnalysis() {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateCustomer = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateCustomer = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingCustomer) return;
+    if (!editingCustomer || !user) return;
 
     const formData = new FormData(event.currentTarget);
-    const updatedCustomer: Customer = {
-      ...editingCustomer,
+    const updatedData: Partial<Customer> = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       totalSpent: parseFloat(formData.get("totalSpent") as string),
     };
-
-    setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
-    setEditingCustomer(null);
-    setIsEditDialogOpen(false);
+    
+    try {
+      await updateCustomer(user.uid, editingCustomer.id, updatedData);
+      setCustomers(customers.map(c => c.id === editingCustomer.id ? { ...c, ...updatedData } : c));
+      setIsEditDialogOpen(false);
+      setEditingCustomer(null);
+      toast({ title: "Success", description: "Customer updated successfully." });
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      toast({ title: "Error", description: "Failed to update customer.", variant: "destructive" });
+    }
   };
 
-  const handleDeleteConfirm = () => {
-    if (customerToDelete) {
-      setCustomers(customers.filter(c => c.id !== customerToDelete.id));
-      setCustomerToDelete(null);
+  const handleDeleteConfirm = async () => {
+    if (customerToDelete && user) {
+      try {
+        await deleteCustomer(user.uid, customerToDelete.id);
+        setCustomers(customers.filter(c => c.id !== customerToDelete.id));
+        setCustomerToDelete(null);
+        toast({ title: "Success", description: "Customer deleted successfully." });
+      } catch (error) {
+        console.error("Error deleting customer:", error);
+        toast({ title: "Error", description: "Failed to delete customer.", variant: "destructive" });
+      }
     }
   };
 
@@ -188,53 +235,61 @@ export function CustomerAnalysis() {
           </Dialog>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-right">Total Spent</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>{customer.name}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(customer.totalSpent)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(customer)}>
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit Customer</span>
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => setCustomerToDelete(customer)}>
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete Customer</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete this customer record.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
+           {loadingData ? (
+             <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+             </div>
+           ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="text-right">Total Spent</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {customers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>{customer.name}</TableCell>
+                    <TableCell>{customer.email}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(customer.totalSpent)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(customer)}>
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Edit Customer</span>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={() => setCustomerToDelete(customer)}>
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete Customer</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete this customer record.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+           )}
         </CardContent>
       </Card>
 
@@ -250,14 +305,14 @@ export function CustomerAnalysis() {
                 Generate insights on customer behavior and get marketing suggestions.
               </CardDescription>
             </div>
-            <Button onClick={handleGenerateInsights} disabled={loading || customers.length === 0} size="sm">
-              {loading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleGenerateInsights} disabled={loadingInsights || customers.length === 0} size="sm">
+              {loadingInsights && <Loader className="mr-2 h-4 w-4 animate-spin" />}
               Generate
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {loading && (
+          {loadingInsights && (
             <div className="flex items-center justify-center p-8">
               <Loader className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -302,7 +357,7 @@ export function CustomerAnalysis() {
                 </ul>
               </div>
             </div>
-          ) : !loading && (
+          ) : !loadingInsights && (
             <div className="text-center text-muted-foreground p-8">
               <Zap className="mx-auto h-8 w-8 mb-2" />
               <p>Click "Generate" to get AI insights.</p>

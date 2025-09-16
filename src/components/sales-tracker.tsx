@@ -17,9 +17,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { mockSales } from "@/lib/mock-data";
-import { Edit, PlusCircle, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Edit, PlusCircle, Trash2, Loader } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +38,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -50,22 +48,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-
-type Sale = {
-  id: string;
-  customerName: string;
-  product: string;
-  amount: number;
-  status: "Paid" | "Pending";
-  date: Date;
-};
+import { useAuth } from "@/context/auth-context";
+import { getSales, addSale, updateSale, deleteSale } from "@/lib/firestore-service";
+import type { Sale } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "./ui/skeleton";
 
 export function SalesTracker() {
-  const [sales, setSales] = useState<Sale[]>(mockSales);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchSales();
+    }
+  }, [user]);
+
+  const fetchSales = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const userSales = await getSales(user.uid);
+      setSales(userSales);
+    } catch (error) {
+      console.error("Error fetching sales:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch sales data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -81,11 +102,12 @@ export function SalesTracker() {
     });
   };
 
-  const handleAddSale = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleAddSale = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!user) return;
+
     const formData = new FormData(event.currentTarget);
-    const newSale: Sale = {
-      id: `S${(sales.length + 1).toString().padStart(3, "0")}`,
+    const newSaleData = {
       customerName: formData.get("customerName") as string,
       product: formData.get("product") as string,
       amount: parseFloat(formData.get("amount") as string),
@@ -93,9 +115,16 @@ export function SalesTracker() {
       date: new Date(),
     };
 
-    if (newSale.customerName && newSale.product && !isNaN(newSale.amount)) {
-      setSales([newSale, ...sales]);
-      setIsAddDialogOpen(false);
+    if (newSaleData.customerName && newSaleData.product && !isNaN(newSaleData.amount)) {
+      try {
+        const id = await addSale(user.uid, newSaleData);
+        setSales([{ id, ...newSaleData }, ...sales]);
+        setIsAddDialogOpen(false);
+        toast({ title: "Success", description: "Sale added successfully." });
+      } catch (error) {
+        console.error("Error adding sale:", error);
+        toast({ title: "Error", description: "Failed to add sale.", variant: "destructive" });
+      }
     }
   };
 
@@ -104,28 +133,41 @@ export function SalesTracker() {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateSale = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateSale = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingSale) return;
+    if (!editingSale || !user) return;
 
     const formData = new FormData(event.currentTarget);
-    const updatedSale: Sale = {
-      ...editingSale,
+    const updatedData: Partial<Sale> = {
       customerName: formData.get("customerName") as string,
       product: formData.get("product") as string,
       amount: parseFloat(formData.get("amount") as string),
       status: formData.get("status") as "Paid" | "Pending",
     };
 
-    setSales(sales.map(s => s.id === updatedSale.id ? updatedSale : s));
-    setEditingSale(null);
-    setIsEditDialogOpen(false);
+    try {
+      await updateSale(user.uid, editingSale.id, updatedData);
+      setSales(sales.map(s => s.id === editingSale.id ? { ...s, ...updatedData } : s));
+      setIsEditDialogOpen(false);
+      setEditingSale(null);
+      toast({ title: "Success", description: "Sale updated successfully." });
+    } catch (error) {
+      console.error("Error updating sale:", error);
+      toast({ title: "Error", description: "Failed to update sale.", variant: "destructive" });
+    }
   };
 
-  const handleDeleteConfirm = () => {
-    if (saleToDelete) {
-      setSales(sales.filter(s => s.id !== saleToDelete.id));
-      setSaleToDelete(null);
+  const handleDeleteConfirm = async () => {
+    if (saleToDelete && user) {
+      try {
+        await deleteSale(user.uid, saleToDelete.id);
+        setSales(sales.filter(s => s.id !== saleToDelete.id));
+        setSaleToDelete(null);
+        toast({ title: "Success", description: "Sale deleted successfully." });
+      } catch (error) {
+        console.error("Error deleting sale:", error);
+        toast({ title: "Error", description: "Failed to delete sale.", variant: "destructive" });
+      }
     }
   };
 
@@ -200,68 +242,76 @@ export function SalesTracker() {
           </Dialog>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sales.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell>{sale.customerName}</TableCell>
-                  <TableCell>{sale.product}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        sale.status === "Paid" ? "default" : "secondary"
-                      }
-                      className={
-                          sale.status === "Paid" ? "bg-green-500/20 text-green-700 hover:bg-green-500/30" : "bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30"
-                      }
-                    >
-                      {sale.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(sale.amount)}
-                  </TableCell>
-                  <TableCell>{formatDate(sale.date)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(sale)}>
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit Sale</span>
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" onClick={() => setSaleToDelete(sale)}>
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete Sale</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete this sale record.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setSaleToDelete(null)}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {sales.map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell>{sale.customerName}</TableCell>
+                    <TableCell>{sale.product}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          sale.status === "Paid" ? "default" : "secondary"
+                        }
+                        className={
+                            sale.status === "Paid" ? "bg-green-500/20 text-green-700 hover:bg-green-500/30" : "bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30"
+                        }
+                      >
+                        {sale.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(sale.amount)}
+                    </TableCell>
+                    <TableCell>{formatDate(sale.date)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(sale)}>
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Edit Sale</span>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={() => setSaleToDelete(sale)}>
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete Sale</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete this sale record.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setSaleToDelete(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

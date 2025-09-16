@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
-import { mockSales } from "@/lib/mock-data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DatePickerWithRange } from "@/components/ui/date-picker";
@@ -11,8 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { BarChart, FileText } from "lucide-react";
 import Link from "next/link";
-
-type Sale = typeof mockSales[0];
+import { getSales } from "@/lib/firestore-service";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import type { Sale } from "@/lib/types";
 
 type ReportData = {
   totalSales: number;
@@ -23,11 +24,35 @@ type ReportData = {
 };
 
 export function ReportGenerator() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [allSales, setAllSales] = useState<Sale[]>([]);
   const [date, setDate] = useState<DateRange | undefined>({
     from: addDays(new Date(), -30),
     to: new Date(),
   });
   const [report, setReport] = useState<ReportData | null>(null);
+  
+  useEffect(() => {
+    if (user) {
+      fetchSales();
+    }
+  }, [user]);
+
+  const fetchSales = async () => {
+    if (!user) return;
+    try {
+      const userSales = await getSales(user.uid);
+      setAllSales(userSales);
+    } catch (error) {
+      console.error("Error fetching sales for report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch sales data for reports.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -48,9 +73,15 @@ export function ReportGenerator() {
       return;
     }
 
-    const filteredSales = mockSales.filter(sale => {
+    const filteredSales = allSales.filter(sale => {
       const saleDate = new Date(sale.date);
-      return saleDate >= date.from! && saleDate <= date.to!;
+      // Adjust timezone differences by comparing dates only
+      const fromDate = new Date(date.from!);
+      fromDate.setHours(0, 0, 0, 0);
+      const toDate = new Date(date.to!);
+      toDate.setHours(23, 59, 59, 999);
+      
+      return saleDate >= fromDate && saleDate <= toDate;
     });
 
     const totalSales = filteredSales.reduce((sum, sale) => sum + sale.amount, 0);

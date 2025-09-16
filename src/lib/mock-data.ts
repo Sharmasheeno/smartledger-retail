@@ -78,3 +78,11 @@ export const mockCustomers = [
   { id: "C005", name: "Ethan Davis", email: "ethan@example.com", totalSpent: 1800.00, lastPurchaseDate: "2024-05-18" },
   { id: "C006", name: "Fiona Garcia", email: "fiona@example.com", totalSpent: 300.00, lastPurchaseDate: "2023-11-22" },
 ];
+
+export const mockSales = [
+    { id: "S001", customerName: "Alice Johnson", product: "P001", amount: 75.00, status: "Paid", date: new Date("2024-05-28") },
+    { id: "S002", customerName: "Bob Williams", product: "P002", amount: 120.50, status: "Paid", date: new Date("2024-05-28") },
+    { id: "S003", customerName: "Charlie Brown", product: "P003", amount: 350.00, status: "Pending", date: new Date("2024-05-27") },
+    { id: "S004", customerName: "Ethan Davis", product: "P001", amount: 75.00, status: "Paid", date: new Date("2024-05-26") },
+    { id: "S005", customerName: "Alice Johnson", product: "P004", amount: 200.00, status: "Paid", date: new Date("2024-05-25") },
+];

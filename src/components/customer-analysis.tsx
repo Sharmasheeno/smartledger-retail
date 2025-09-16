@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Loader, User, Zap, TrendingUp, ShoppingBag } from "lucide-react";
+import { Bot, Loader, User, Zap, TrendingUp, ShoppingBag, PlusCircle, Edit, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -24,17 +24,49 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
+
+type Customer = typeof mockCustomers[0];
 
 export function CustomerAnalysis() {
+  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
   const [insights, setInsights] = useState<CustomerInsightsOutput | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+
 
   const handleGenerateInsights = async () => {
     setLoading(true);
     setInsights(null);
     try {
-      const result = await generateCustomerInsights({ customers: mockCustomers });
+      const result = await generateCustomerInsights({ customers });
       setInsights(result);
     } catch (error) {
       console.error(error);
@@ -62,14 +94,98 @@ export function CustomerAnalysis() {
     });
   }
 
+  const handleAddCustomer = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const newCustomer: Customer = {
+      id: `C${(customers.length + 1).toString().padStart(3, "0")}`,
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      totalSpent: parseFloat(formData.get("totalSpent") as string) || 0,
+      lastPurchaseDate: new Date().toISOString().split('T')[0],
+    };
+
+    if (newCustomer.name && newCustomer.email) {
+      setCustomers([newCustomer, ...customers]);
+      setIsAddDialogOpen(false);
+    }
+  };
+
+  const handleEditClick = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateCustomer = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingCustomer) return;
+
+    const formData = new FormData(event.currentTarget);
+    const updatedCustomer: Customer = {
+      ...editingCustomer,
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      totalSpent: parseFloat(formData.get("totalSpent") as string),
+    };
+
+    setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+    setEditingCustomer(null);
+    setIsEditDialogOpen(false);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (customerToDelete) {
+      setCustomers(customers.filter(c => c.id !== customerToDelete.id));
+      setCustomerToDelete(null);
+    }
+  };
+
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <Card className="lg:col-span-3">
-        <CardHeader>
-          <CardTitle>Customer List</CardTitle>
-          <CardDescription>
-            A list of all customers in your system.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Customer List</CardTitle>
+            <CardDescription>
+              A list of all customers in your system.
+            </CardDescription>
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <PlusCircle className="mr-2" />
+                Add Customer
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Customer</DialogTitle>
+                <DialogDescription>
+                  Enter the details for the new customer. Click save when you're done.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddCustomer}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">Name</Label>
+                    <Input id="name" name="name" className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="email" className="text-right">Email</Label>
+                    <Input id="email" name="email" type="email" className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="totalSpent" className="text-right">Total Spent</Label>
+                    <Input id="totalSpent" name="totalSpent" type="number" step="0.01" className="col-span-3" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                  <Button type="submit">Save Customer</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           <Table>
@@ -78,15 +194,42 @@ export function CustomerAnalysis() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead className="text-right">Total Spent</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockCustomers.map((customer) => (
+              {customers.map((customer) => (
                 <TableRow key={customer.id}>
                   <TableCell>{customer.name}</TableCell>
                   <TableCell>{customer.email}</TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(customer.totalSpent)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(customer)}>
+                      <Edit className="h-4 w-4" />
+                      <span className="sr-only">Edit Customer</span>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon" onClick={() => setCustomerToDelete(customer)}>
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete Customer</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this customer record.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
@@ -107,7 +250,7 @@ export function CustomerAnalysis() {
                 Generate insights on customer behavior and get marketing suggestions.
               </CardDescription>
             </div>
-            <Button onClick={handleGenerateInsights} disabled={loading} size="sm">
+            <Button onClick={handleGenerateInsights} disabled={loading || customers.length === 0} size="sm">
               {loading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
               Generate
             </Button>
@@ -167,6 +310,44 @@ export function CustomerAnalysis() {
           )}
         </CardContent>
       </Card>
+      
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogDescription>
+              Update the customer details. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          {editingCustomer && (
+            <form onSubmit={handleUpdateCustomer}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-name" className="text-right">Name</Label>
+                  <Input id="edit-name" name="name" defaultValue={editingCustomer.name} className="col-span-3" required />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-email" className="text-right">Email</Label>
+                  <Input id="edit-email" name="email" type="email" defaultValue={editingCustomer.email} className="col-span-3" required />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-totalSpent" className="text-right">Total Spent</Label>
+                  <Input id="edit-totalSpent" name="totalSpent" type="number" step="0.01" defaultValue={editingCustomer.totalSpent} className="col-span-3" required />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="secondary" onClick={() => setIsEditDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { useAuth } from "@/context/auth-context";
 import { useState, type FormEvent } from "react";
 import { Loader } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -43,46 +44,56 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="mx-auto max-w-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl">Login</CardTitle>
-        <CardDescription>
-          Enter your email below to login to your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              name="email"
-              placeholder="m@example.com"
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <div className="flex items-center">
-              <Label htmlFor="password">Password</Label>
-              <Link href="#" className="ml-auto inline-block text-sm underline">
-                Forgot your password?
-              </Link>
+    <div className="flex flex-col items-center">
+      <Image 
+        src="https://picsum.photos/seed/logo/100/100" 
+        alt="Company Logo" 
+        width={80} 
+        height={80} 
+        className="mb-6 rounded-full"
+        data-ai-hint="logo"
+      />
+      <Card className="mx-auto max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardDescription>
+            Enter your email below to login to your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="m@example.com"
+                required
+              />
             </div>
-            <Input id="password" type="password" name="password" required />
+            <div className="grid gap-2">
+              <div className="flex items-center">
+                <Label htmlFor="password">Password</Label>
+                <Link href="#" className="ml-auto inline-block text-sm underline">
+                  Forgot your password?
+                </Link>
+              </div>
+              <Input id="password" type="password" name="password" required />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+              Login
+            </Button>
+          </form>
+          <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="underline">
+              Sign up
+            </Link>
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-            Login
-          </Button>
-        </form>
-        <div className="mt-4 text-center text-sm">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="underline">
-            Sign up
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

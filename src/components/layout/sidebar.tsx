@@ -8,7 +8,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Logo } from "@/components/logo";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,7 +37,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex w-full items-center justify-center gap-3 py-4">
-          <Logo className="size-8 shrink-0 text-primary" />
+          <Image 
+            src="https://picsum.photos/seed/logo/100/100" 
+            alt="Company Logo" 
+            width={40} 
+            height={40} 
+            className="rounded-md"
+            data-ai-hint="logo"
+          />
           <div className="flex flex-col overflow-hidden">
             <h2 className="font-headline text-lg font-bold">SmartLedger</h2>
             <p className="truncate text-sm text-muted-foreground">

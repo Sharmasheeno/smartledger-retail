@@ -35,6 +35,9 @@ export default function SignupPage() {
       if (!email || !password || !firstName) {
         throw new Error("Please fill out all required fields.");
       }
+      if (password.length < 6) {
+        throw new Error("Password must be at least 6 characters long.");
+      }
       await signup(email, password, name);
     } catch (err) {
       console.error(err);

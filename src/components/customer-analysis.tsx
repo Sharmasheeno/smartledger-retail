@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -42,6 +43,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
@@ -63,12 +65,6 @@ export function CustomerAnalysis() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchCustomers();
-    }
-  }, [user]);
-
   const fetchCustomers = async () => {
     if (!user) return;
     setLoadingData(true);
@@ -86,6 +82,12 @@ export function CustomerAnalysis() {
       setLoadingData(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchCustomers();
+    }
+  }, [user]);
 
 
   const handleGenerateInsights = async () => {
@@ -406,3 +408,5 @@ export function CustomerAnalysis() {
     </div>
   );
 }
+
+    

@@ -12,21 +12,15 @@ import {
 } from "firebase/firestore";
 import type { Customer, Sale } from "./types";
 
-// Generic function to get a collection reference for a user
-const getUserSubcollection = (userId: string, collectionName:string) => {
-    return collection(db, "users", userId, collectionName);
-}
-
 // Customer Functions
 export const getCustomers = async (userId: string): Promise<Customer[]> => {
-  const customersCol = getUserSubcollection(userId, "customers");
+  const customersCol = collection(db, "users", userId, "customers");
   const q = query(customersCol, orderBy("lastPurchaseDate", "desc"));
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
-    // Ensure timestamp is converted to a serializable format (ISO string)
     const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp 
-      ? data.lastPurchaseDate.toDate().toISOString() 
+      ? data.lastPurchaseDate.toDate().toISOString()
       : new Date().toISOString();
     return {
       id: doc.id,
@@ -40,7 +34,7 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
 };
 
 export const addCustomer = async (userId: string, customerData: Omit<Customer, "id">) => {
-    const customersCol = getUserSubcollection(userId, "customers");
+    const customersCol = collection(db, "users", userId, "customers");
     const docRef = await addDoc(customersCol, {
       ...customerData,
       lastPurchaseDate: new Date(customerData.lastPurchaseDate),
@@ -66,12 +60,11 @@ export const deleteCustomer = async (userId: string, customerId: string) => {
 
 // Sales Functions
 export const getSales = async (userId: string): Promise<Sale[]> => {
-  const salesCol = getUserSubcollection(userId, "sales");
+  const salesCol = collection(db, "users", userId, "sales");
   const q = query(salesCol, orderBy("date", "desc"));
   const salesSnapshot = await getDocs(q);
   const salesList = salesSnapshot.docs.map(doc => {
     const data = doc.data();
-    // Ensure timestamp is converted to a serializable format (ISO string)
     const date = data.date instanceof Timestamp 
         ? data.date.toDate().toISOString() 
         : new Date().toISOString();
@@ -88,7 +81,7 @@ export const getSales = async (userId: string): Promise<Sale[]> => {
 };
 
 export const addSale = async (userId: string, saleData: Omit<Sale, "id" | "date"> & { date: Date }) => {
-  const salesCol = getUserSubcollection(userId, "sales");
+  const salesCol = collection(db, "users", userId, "sales");
   const docRef = await addDoc(salesCol, {
     ...saleData,
     date: Timestamp.fromDate(saleData.date),

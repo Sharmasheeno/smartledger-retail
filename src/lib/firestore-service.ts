@@ -24,7 +24,10 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
-    const lastPurchaseDate = (data.lastPurchaseDate as Timestamp)?.toDate().toISOString() || new Date().toISOString();
+    // Ensure timestamp is converted to a serializable format (ISO string)
+    const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp 
+      ? data.lastPurchaseDate.toDate().toISOString() 
+      : new Date().toISOString();
     return {
       id: doc.id,
       name: data.name,
@@ -68,13 +71,17 @@ export const getSales = async (userId: string): Promise<Sale[]> => {
   const salesSnapshot = await getDocs(q);
   const salesList = salesSnapshot.docs.map(doc => {
     const data = doc.data();
+    // Ensure timestamp is converted to a serializable format (ISO string)
+    const date = data.date instanceof Timestamp 
+        ? data.date.toDate().toISOString() 
+        : new Date().toISOString();
     return {
       id: doc.id,
       customerName: data.customerName,
       product: data.product,
       amount: data.amount,
       status: data.status,
-      date: (data.date as Timestamp).toDate().toISOString(),
+      date: date,
     } as Sale;
   });
   return salesList;
@@ -84,7 +91,7 @@ export const addSale = async (userId: string, saleData: Omit<Sale, "id" | "date"
   const salesCol = getUserSubcollection(userId, "sales");
   const docRef = await addDoc(salesCol, {
     ...saleData,
-    date: saleData.date, // Pass the Date object directly
+    date: Timestamp.fromDate(saleData.date),
   });
   return docRef.id;
 };

@@ -60,8 +60,8 @@ export function ReportGenerator() {
       currency: "USD",
     }).format(value);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -134,7 +134,7 @@ export function ReportGenerator() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Number of Sales</CardTitle>
-                </CardHeader>
+                </Header>
                 <CardContent>
                   <div className="text-2xl font-bold">{report.numberOfSales}</div>
                 </CardContent>

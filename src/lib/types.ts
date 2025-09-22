@@ -12,5 +12,5 @@ export type Sale = {
     product: string;
     amount: number;
     status: "Paid" | "Pending";
-    date: Date;
+    date: string; // Changed to string to ensure serializability
 };

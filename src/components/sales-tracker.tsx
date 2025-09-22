@@ -95,8 +95,8 @@ export function SalesTracker() {
       currency: "USD",
     }).format(value);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -119,7 +119,7 @@ export function SalesTracker() {
     if (newSaleData.customerName && newSaleData.product && !isNaN(newSaleData.amount)) {
       try {
         const id = await addSale(user.uid, newSaleData);
-        setSales([{ id, ...newSaleData }, ...sales]);
+        setSales([{ id, ...newSaleData, date: newSaleData.date.toISOString() }, ...sales]);
         setIsAddDialogOpen(false);
         toast({ title: "Success", description: "Sale added successfully." });
       } catch (error) {

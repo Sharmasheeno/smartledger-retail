@@ -25,15 +25,16 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
-    // Firestore returns Timestamps. Convert them to ISO strings for the client.
-    const lastPurchaseDate = data.lastPurchaseDate?.toDate()?.toISOString() ?? new Date().toISOString();
+    const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp 
+      ? data.lastPurchaseDate.toDate().toISOString().split('T')[0] 
+      : data.lastPurchaseDate || new Date().toISOString().split('T')[0];
     
     return {
       id: doc.id,
       name: data.name,
       email: data.email,
       totalSpent: data.totalSpent,
-      lastPurchaseDate: lastPurchaseDate.split('T')[0], // Format as yyyy-mm-dd
+      lastPurchaseDate: lastPurchaseDate,
     } as Customer;
   });
   return customerList;
@@ -77,8 +78,7 @@ export const getSales = async (userId: string): Promise<Sale[]> => {
       product: data.product,
       amount: data.amount,
       status: data.status,
-      // Convert Firestore Timestamp to Date object for use in the client
-      date: (data.date as Timestamp).toDate(),
+      date: (data.date as Timestamp).toDate().toISOString(), // Convert Timestamp to ISO string
     } as Sale;
   });
   return salesList;
@@ -96,7 +96,11 @@ export const addSale = async (userId: string, saleData: Omit<Sale, "id" | "date"
 
 export const updateSale = async (userId: string, saleId: string, saleData: Partial<Omit<Sale, "id">>) => {
   const saleDocRef = doc(db, "users", userId, "sales", saleId);
-  await updateDoc(saleDocRef, saleData);
+  const updateData: { [key: string]: any } = { ...saleData };
+    if (saleData.date) {
+        updateData.date = new Date(saleData.date);
+    }
+  await updateDoc(saleDocRef, updateData);
 };
 
 export const deleteSale = async (userId: string, saleId: string) => {

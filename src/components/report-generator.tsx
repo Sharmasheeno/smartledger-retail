@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -78,7 +79,7 @@ export function ReportGenerator() {
       // Adjust timezone differences by comparing dates only
       const fromDate = new Date(date.from!);
       fromDate.setHours(0, 0, 0, 0);
-      const toDate = new Date(date.to!);
+      const toDate = new date.to!;
       toDate.setHours(23, 59, 59, 999);
       
       return saleDate >= fromDate && saleDate <= toDate;
@@ -134,7 +135,7 @@ export function ReportGenerator() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Number of Sales</CardTitle>
-                </Header>
+                </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{report.numberOfSales}</div>
                 </CardContent>

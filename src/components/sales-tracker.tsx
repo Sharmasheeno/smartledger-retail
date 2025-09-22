@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -66,28 +67,30 @@ export function SalesTracker() {
   const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
 
   useEffect(() => {
+    const fetchSales = async () => {
+      if (!user) return; // Guard against undefined user
+      setLoading(true);
+      try {
+        const userSales = await getSales(user.uid);
+        setSales(userSales);
+      } catch (error) {
+        console.error("Error fetching sales:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch sales data. Please check permissions.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     if (user) {
       fetchSales();
+    } else {
+      setLoading(false); // If no user, stop loading
     }
-  }, [user]);
-
-  const fetchSales = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const userSales = await getSales(user.uid);
-      setSales(userSales);
-    } catch (error) {
-      console.error("Error fetching sales:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch sales data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user, toast]);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -376,3 +379,5 @@ export function SalesTracker() {
     </>
   );
 }
+
+    

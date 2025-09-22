@@ -65,29 +65,31 @@ export function CustomerAnalysis() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
-  const fetchCustomers = async () => {
-    if (!user) return;
-    setLoadingData(true);
-    try {
-      const userCustomers = await getCustomers(user.uid);
-      setCustomers(userCustomers);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch customer data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingData(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchCustomers = async () => {
+      if (!user) return; // Guard against undefined user
+      setLoadingData(true);
+      try {
+        const userCustomers = await getCustomers(user.uid);
+        setCustomers(userCustomers);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch customer data. Please check permissions.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
     if (user) {
       fetchCustomers();
+    } else {
+      setLoadingData(false); // If no user, stop loading
     }
-  }, [user]);
+  }, [user, toast]);
 
 
   const handleGenerateInsights = async () => {
@@ -131,13 +133,13 @@ export function CustomerAnalysis() {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       totalSpent: parseFloat(formData.get("totalSpent") as string) || 0,
-      lastPurchaseDate: new Date().toISOString().split('T')[0],
+      lastPurchaseDate: new Date(),
     };
 
     if (newCustomerData.name && newCustomerData.email) {
        try {
         const id = await addCustomer(user.uid, newCustomerData);
-        setCustomers([{ id, ...newCustomerData }, ...customers]);
+        setCustomers([{ id, ...newCustomerData, lastPurchaseDate: newCustomerData.lastPurchaseDate.toISOString() }, ...customers]);
         setIsAddDialogOpen(false);
         toast({ title: "Success", description: "Customer added successfully." });
       } catch (error) {

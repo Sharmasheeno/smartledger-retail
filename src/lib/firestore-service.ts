@@ -25,10 +25,11 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
-    const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp 
-      ? data.lastPurchaseDate.toDate().toISOString().split('T')[0] 
-      : data.lastPurchaseDate || new Date().toISOString().split('T')[0];
-    
+    // Ensure Timestamp is converted to a serializable string
+    const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp
+      ? data.lastPurchaseDate.toDate().toISOString()
+      : data.lastPurchaseDate || new Date().toISOString();
+
     return {
       id: doc.id,
       name: data.name,

@@ -13,10 +13,9 @@ import {
 import type { Customer, Sale } from "./types";
 
 // Generic function to get a collection reference for a user
-const getUserSubcollection = (userId: string, collectionName: string) => {
-  return collection(db, "users", userId, collectionName);
-};
-
+const getUserSubcollection = (userId: string, collectionName:string) => {
+    return collection(db, "users", userId, collectionName);
+}
 
 // Customer Functions
 export const getCustomers = async (userId: string): Promise<Customer[]> => {
@@ -25,11 +24,7 @@ export const getCustomers = async (userId: string): Promise<Customer[]> => {
   const customerSnapshot = await getDocs(q);
   const customerList = customerSnapshot.docs.map(doc => {
     const data = doc.data();
-    // Ensure Timestamp is converted to a serializable string
-    const lastPurchaseDate = data.lastPurchaseDate instanceof Timestamp
-      ? data.lastPurchaseDate.toDate().toISOString()
-      : data.lastPurchaseDate || new Date().toISOString();
-
+    const lastPurchaseDate = (data.lastPurchaseDate as Timestamp)?.toDate().toISOString() || new Date().toISOString();
     return {
       id: doc.id,
       name: data.name,
@@ -79,17 +74,17 @@ export const getSales = async (userId: string): Promise<Sale[]> => {
       product: data.product,
       amount: data.amount,
       status: data.status,
-      date: (data.date as Timestamp).toDate().toISOString(), // Convert Timestamp to ISO string
+      date: (data.date as Timestamp).toDate().toISOString(),
     } as Sale;
   });
   return salesList;
 };
 
-export const addSale = async (userId: string, saleData: Omit<Sale, "id" | "date"> & { date?: Date }) => {
+export const addSale = async (userId: string, saleData: Omit<Sale, "id" | "date"> & { date: Date }) => {
   const salesCol = getUserSubcollection(userId, "sales");
   const docRef = await addDoc(salesCol, {
     ...saleData,
-    date: saleData.date || new Date(),
+    date: saleData.date, // Pass the Date object directly
   });
   return docRef.id;
 };
